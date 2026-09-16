@@ -74,9 +74,6 @@ finishMessage\s*:.*
 | `metadata.yaml` | AstrBot 插件元数据 |
 | `test_offline.py` | 离线单元测试（7 组用例，用假 event 验证） |
 
-## 致谢
-
-初始版本由 kimi 编写并在生产环境验证。
 
 ## License
 
