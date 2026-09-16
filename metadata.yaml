@@ -1,0 +1,4 @@
+name: block_toolcall_placeholder
+desc: 屏蔽中转网关在工具调用时注入的占位/调试文本（Model generated function call(s). / finishReason 转储）
+version: 1.1.0
+author: kimi

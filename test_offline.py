@@ -1,0 +1,88 @@
+"""离线单元测试：不依赖真实 AstrBot 运行环境，用假 event 验证清洗逻辑。
+
+在插件目录内直接运行：
+    python test_offline.py
+
+需要能 import 到 astrbot 的消息组件（Plain/Image），例如在 AstrBot
+容器内执行，或本机装有 astrbot 包。
+"""
+
+import asyncio
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from astrbot.api.message_components import Image, Plain
+
+import main as m
+
+
+class FakeResult:
+    def __init__(self, chain):
+        self.chain = chain
+
+
+class FakeEvent:
+    def __init__(self, chain):
+        self._r = FakeResult(chain)
+
+    def get_result(self):
+        return self._r
+
+
+async def run():
+    inst = m.BlockToolCallPlaceholder.__new__(m.BlockToolCallPlaceholder)
+    h = m.BlockToolCallPlaceholder.strip_toolcall_placeholder
+
+    # 1. 纯占位 -> 清空
+    ev = FakeEvent([Plain(text="Model generated function call(s).")])
+    await h(inst, ev)
+    assert ev.get_result().chain == [], "case1 fail"
+
+    # 2. finishReason 调试转储 -> 清空
+    ev = FakeEvent(
+        [Plain(text="finishReason: STOP\nfinishMessage: Model generated function call(s).")]
+    )
+    await h(inst, ev)
+    assert ev.get_result().chain == [], "case2 fail"
+
+    # 3. 正常文本 -> 不动
+    ev = FakeEvent([Plain(text="回主人，这是正常回复")])
+    await h(inst, ev)
+    out = ev.get_result().chain
+    assert len(out) == 1 and out[0].text == "回主人，这是正常回复", "case3 fail"
+
+    # 4. 垃圾行混在正常文本中 -> 只留正常行
+    ev = FakeEvent(
+        [
+            Plain(
+                text="回主人，看这个：\nfinishReason: STOP\nfinishMessage: Model generated function call(s).\n以上是调试信息"
+            )
+        ]
+    )
+    await h(inst, ev)
+    out = ev.get_result().chain
+    assert len(out) == 1 and out[0].text == "回主人，看这个：\n以上是调试信息", (
+        f"case4 fail: {out[0].text!r}"
+    )
+
+    # 5. 占位+图片 -> 只剩图片
+    ev = FakeEvent([Plain(text="Model generated function call(s)."), Image(file="x")])
+    await h(inst, ev)
+    out = ev.get_result().chain
+    assert len(out) == 1 and isinstance(out[0], Image), "case5 fail"
+
+    # 6. 带空白占位 -> 清空
+    ev = FakeEvent([Plain(text="  Model generated function call(s).  ")])
+    await h(inst, ev)
+    assert ev.get_result().chain == [], "case6 fail"
+
+    # 7. 空结果 -> 不炸
+    ev = FakeEvent([])
+    await h(inst, ev)
+    assert ev.get_result().chain == [], "case7 fail"
+
+    print("ALL TESTS PASSED")
+
+
+asyncio.run(run())
