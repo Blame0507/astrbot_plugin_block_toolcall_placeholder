@@ -1,0 +1,26 @@
+{
+  "拦截规则": {
+    "description": "拦截规则列表（正则表达式）",
+    "type": "list",
+    "hint": "每条为一个 Python 正则表达式。默认整行匹配：某行内容（忽略首尾空白）完全命中任一规则即整行剔除；开启「行内包含匹配」后，行内任意位置命中即整行剔除。无效正则将被跳过并在日志中提示。",
+    "default": [
+      "Model generated function call.*",
+      "finishReason\\s*:.*",
+      "finishMessage\\s*:.*"
+    ],
+    "obvious_hint": true
+  },
+  "行内包含匹配": {
+    "description": "行内包含匹配",
+    "type": "bool",
+    "hint": "默认关闭 = 整行匹配（更安全，只删完全属于垃圾的行）。开启后一行中任意位置出现规则内容即整行剔除，更激进，可能误伤正常回复。",
+    "default": false,
+    "obvious_hint": false
+  },
+  "替代文本": {
+    "description": "整条消息被清空时的替代文本",
+    "type": "string",
+    "hint": "默认留空：整条消息被过滤干净时直接不发送任何内容。填写后（如「（回复被过滤）」）则以该文本替代发送。",
+    "default": ""
+  }
+}

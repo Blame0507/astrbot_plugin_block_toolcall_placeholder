@@ -46,15 +46,25 @@ git clone https://github.com/Blame0507/astrbot_plugin_block_toolcall_placeholder
 
 然后重启 AstrBot（`docker restart astrbot` 或重启进程）即可，加载日志中应出现 `block_toolcall_placeholder`。
 
-## 扩展新垃圾变种
+## 配置（WebUI 可视化面板）
 
-网关若出现新的垃圾文本形态（如 `tool_calls:` 转储、`usage:` 转储等），向 `main.py` 中的 `_JUNK_LINE_RE` 添加分支即可。修改后建议先跑离线测试：
+在 AstrBot WebUI → 插件管理 → 本插件 → 配置，无需改代码：
 
-```bash
-python test_offline.py   # 需在能 import astrbot 包的环境执行，如 AstrBot 容器内
+| 配置项 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| 拦截规则 | 正则列表 | 预置三条已知网关垃圾行规则 | 每条为一个 Python 正则表达式；某行（忽略首尾空白）完全命中任一规则即整行剔除 |
+| 行内包含匹配 | 开关 | 关 | 默认整行匹配（更安全）。开启后行内任意位置命中即整行剔除，更激进，可能误伤正常回复 |
+| 替代文本 | 文本 | 空 | 整条消息被过滤干净时：留空则不发送任何内容；填写则以该文本替代发送 |
+
+无效正则会被自动跳过并在日志中提示，不会导致插件崩溃。配置保存后即按新规则拦截。
+
+默认预置规则（可删改）：
+
+```text
+Model generated function call.*
+finishReason\s*:.*
+finishMessage\s*:.*
 ```
-
-测试通过后再重启 AstrBot 生效。
 
 ## 文件说明
 

@@ -30,8 +30,16 @@ class FakeEvent:
         return self._r
 
 
-async def run():
+def make_inst(cfg=None):
     inst = m.BlockToolCallPlaceholder.__new__(m.BlockToolCallPlaceholder)
+    inst.config = cfg or {}
+    inst._compile_rules()
+    return inst
+
+
+async def run():
+    # 用默认规则（无配置）构造，等价于 WebUI 未改动时的行为
+    inst = make_inst()
     h = m.BlockToolCallPlaceholder.strip_toolcall_placeholder
 
     # 1. 纯占位 -> 清空
@@ -81,6 +89,42 @@ async def run():
     ev = FakeEvent([])
     await h(inst, ev)
     assert ev.get_result().chain == [], "case7 fail"
+
+    # 8. 自定义规则（替换默认规则）
+    inst8 = make_inst({"拦截规则": ["^广告：.*$"]})
+    ev = FakeEvent([Plain(text="正常内容\n广告：点此购买")])
+    await h(inst8, ev)
+    out = ev.get_result().chain
+    assert len(out) == 1 and out[0].text == "正常内容", f"case8 fail: {out}"
+    # 自定义后默认规则不应再拦截
+    ev = FakeEvent([Plain(text="Model generated function call(s).")])
+    await h(inst8, ev)
+    assert len(ev.get_result().chain) == 1, "case8b fail: custom rules must replace defaults"
+
+    # 9. 行内包含匹配模式：垃圾内容夹在句中 -> 整行剔除
+    inst9 = make_inst({"拦截规则": ["内部渠道号\\d+"], "行内包含匹配": True})
+    ev = FakeEvent([Plain(text="这句话里夹了内部渠道号9527要删掉")])
+    await h(inst9, ev)
+    assert ev.get_result().chain == [], "case9 fail"
+    # 整行匹配模式下同样的内容不动
+    inst9b = make_inst({"拦截规则": ["内部渠道号\\d+"]})
+    ev = FakeEvent([Plain(text="这句话里夹了内部渠道号9527要删掉")])
+    await h(inst9b, ev)
+    assert len(ev.get_result().chain) == 1, "case9b fail: whole-line mode must keep the line"
+
+    # 10. 替代文本：整条被清空时以替代文本发送
+    inst10 = make_inst({"替代文本": "（回复被过滤）"})
+    ev = FakeEvent([Plain(text="Model generated function call(s).")])
+    await h(inst10, ev)
+    out = ev.get_result().chain
+    assert len(out) == 1 and out[0].text == "（回复被过滤）", f"case10 fail: {out}"
+
+    # 11. 无效正则：跳过并继续工作，正常规则仍生效
+    inst11 = make_inst({"拦截规则": ["(", "finishReason\\s*:.*"]})
+    assert len(inst11._rules) == 1, "case11 fail: invalid regex should be skipped"
+    ev = FakeEvent([Plain(text="finishReason: STOP")])
+    await h(inst11, ev)
+    assert ev.get_result().chain == [], "case11b fail"
 
     print("ALL TESTS PASSED")
 
