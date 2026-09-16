@@ -1,4 +1,4 @@
 name: block_toolcall_placeholder
 desc: 屏蔽中转网关在工具调用时注入的占位/调试文本（支持 WebUI 自定义拦截规则）
-version: 1.2.0
-auth: Blame0507
+version: 1.0.0
+author: Blame0507
